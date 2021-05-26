@@ -24,7 +24,7 @@ pipeline {
 	                echo "Jenkins URL ${env.JENKINS_URL}"
 	                echo "Jenkins JOB Number ${env.BUILD_NUMBER}"
 	                echo "Jenkins JOB Name ${env.JOB_NAME}"
-	                echo "GitHub BranhName ${env.BRANCH_NAME}"
+	                echo "GitHub BranchName ${env.BRANCH_NAME}"
 	                checkout scm
 	
 
@@ -32,53 +32,96 @@ pipeline {
 	        }
 	
 
-	         // Build Stages
-	        stage('Build') {
+	         // Building Tests
+	        stage('Build Tests') {
 	            steps {
-	                echo "Building..with ${WORKSPACE}"
+	                echo "Building package with ${WORKSPACE}"
 	                UiPathPack (
-	                      outputPath: "Output\\${env.BUILD_NUMBER}",
+	                      outputPath: "Output\\Tests\${env.BUILD_NUMBER}",
+						  outputType: 'Tests',
 	                      projectJsonPath: "project.json",
 	                      version: [$class: 'ManualVersionEntry', version: "${MAJOR}.${MINOR}.${env.BUILD_NUMBER}"],
-	                      useOrchestrator: false
-	        )
+	                      useOrchestrator: false,
+						)
 	            }
 	        }
-	         // Test Stages
-	        stage('Test') {
+			
+	         // Deploy Stages
+	        stage('Deploy Tests') {
 	            steps {
-	                echo 'Testing..the workflow...'
-	            }
-	        }
+	                echo "Deploying ${BRANCH_NAME} to orchestrator"
+	                UiPathDeploy (
+	                packagePath: "Output\\Tests\${env.BUILD_NUMBER}",
+	                orchestratorAddress: "${UIPATH_ORCH_URL}",
+	                orchestratorTenant: "${UIPATH_ORCH_TENANT_NAME}",
+	                folderName: "${UIPATH_ORCH_FOLDER_NAME}",
+	                environments: 'INT',
+	                //credentials: [$class: 'UserPassAuthenticationEntry', credentialsId: 'APIUserKey']
+	                credentials: Token(accountName: "${UIPATH_ORCH_LOGICAL_NAME}", credentialsId: 'APIUserKey'), 
 	
 
-	         // Deploy Stages
-	        stage('Deploy to UAT') {
+					)
+	            }
+			
+			}
+			
+			
+	         // Test Stages
+	        stage('Perform Tests') {
 	            steps {
-	                echo "Deploying ${BRANCH_NAME} to UAT "
+	                echo 'Testing the workflow...'
+					UiPathTest (
+					  testTarget: [$class: 'TestSetEntry', testSet: "CICDTEST"],
+					  orchestratorAddress: "${UIPATH_ORCH_URL}",
+					  orchestratorTenant: "${UIPATH_ORCH_TENANT_NAME}",
+					  folderName: "${UIPATH_ORCH_FOLDER_NAME}",
+					  timeout: 10000,
+					  testResultsOutputPath: "result.xml",
+					  //credentials: [$class: 'UserPassAuthenticationEntry', credentialsId: "credentialsId"]
+					  credentials: Token(accountName: "${UIPATH_ORCH_LOGICAL_NAME}", credentialsId: 'APIUserKey')
+					)
+	            }
+			}
+				
+	         // Building Package
+	        stage('Build Process') {
+				when {
+					expression {
+						currentBuild.result == null || currentBuild.result == 'SUCCESS'
+						}
+				}
+				steps {
+					echo "Building package with ${WORKSPACE}"
+					UiPathPack (
+						  outputPath: "Output\\${env.BUILD_NUMBER}",
+						  projectJsonPath: "project.json",
+						  version: [$class: 'ManualVersionEntry', version: "${MAJOR}.${MINOR}.${env.BUILD_NUMBER}"],
+						  useOrchestrator: false,
+						)
+					}
+	        }			
+			
+	         // Deploy to Production Step
+	        stage('Deploy Process') {
+				when {
+					expression {
+						currentBuild.result == null || currentBuild.result == 'SUCCESS' 
+						}
+				}
+				steps {
+	                echo 'Deploying process to orchestrator...'
 	                UiPathDeploy (
 	                packagePath: "Output\\${env.BUILD_NUMBER}",
 	                orchestratorAddress: "${UIPATH_ORCH_URL}",
 	                orchestratorTenant: "${UIPATH_ORCH_TENANT_NAME}",
 	                folderName: "${UIPATH_ORCH_FOLDER_NAME}",
-	                environments: 'DEV',
+	                environments: 'INT',
 	                //credentials: [$class: 'UserPassAuthenticationEntry', credentialsId: 'APIUserKey']
-	                credentials: Token(accountName: "${UIPATH_ORCH_LOGICAL_NAME}", credentialsId: 'APIUserKey'), 
-	
-
-	        )
-	            }
-	        }
-	
-
-	
-
-	         // Deploy to Production Step
-	        stage('Deploy to Production') {
-	            steps {
-	                echo 'Deploy to Production'
-	                }
-	            }
+	                credentials: Token(accountName: "${UIPATH_ORCH_LOGICAL_NAME}", credentialsId: 'APIUserKey'),
+					)
+				}   
+			}	
+		
 	    }
 	
 
@@ -106,5 +149,4 @@ pipeline {
 	        }
 	    }
 	
-
 	}

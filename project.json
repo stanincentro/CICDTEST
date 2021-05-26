@@ -13,7 +13,7 @@
   "entitiesStores": [],
   "schemaVersion": "4.0",
   "studioVersion": "21.4.3.0",
-  "projectVersion": "1.0.1",
+  "projectVersion": "1.0.75726636",
   "runtimeOptions": {
     "autoDispose": false,
     "isPausable": true,
@@ -39,7 +39,7 @@
     },
     "fileInfoCollection": [
       {
-        "editingStatus": "InProgress",
+        "editingStatus": "Publishable",
         "testCaseId": "3e5cef92-9b97-4255-872d-8ae351e13111",
         "fileName": "TestCaseTestFlow.xaml"
       }
